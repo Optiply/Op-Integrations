@@ -1,10 +1,11 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Usage: ./scripts/new-integration.sh "Shopify" "E-commerce" "OAuth2" "https://shopify.dev/docs/api"
-# Creates: vault page, tap scaffold, target scaffold, ETL scaffold, docs scaffold
+# Creates repo-local tap, target, ETL, and docs scaffolds.
+# Optional: set OP_INTEGRATIONS_VAULT=/path/to/vault to also create a vault project page.
 
-set -e
+set -euo pipefail
 
-NAME="$1"
+NAME="${1:-}"
 TYPE="${2:-E-commerce}"   # E-commerce / ERP / WMS / Marketplace / Data
 AUTH="${3:-API Key}"       # OAuth2 / API Key / Basic / Other
 API_DOCS="${4:-}"
@@ -14,14 +15,16 @@ if [ -z "$NAME" ]; then
   exit 1
 fi
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO="$(cd "$SCRIPT_DIR/.." && pwd)"
 SLUG=$(echo "$NAME" | tr '[:upper:]' '[:lower:]' | tr ' ' '-' | tr -cd 'a-z0-9-')
-VAULT="/Volumes/Speedy/Obsidian/Op MindWave"
-REPO="$HOME/optiply-workspace/Op-Integrations-Claw"
+VAULT="${OP_INTEGRATIONS_VAULT:-}"
 DATE=$(date +%Y-%m-%d)
 
 echo "🔌 Creating integration: $NAME ($SLUG)"
 
-# 1. Vault — Integration project page
+# 1. Optional vault — Integration project page
+if [ -n "$VAULT" ]; then
 mkdir -p "$VAULT/Projects/Integrations"
 cat > "$VAULT/Projects/Integrations/$NAME.md" << EOF
 ---
@@ -81,6 +84,7 @@ updated: $DATE
 
 ## Notes
 EOF
+fi
 
 # 2. Repo — Tap scaffold
 TAP_DIR="$REPO/taps/tap-$SLUG/tap_${SLUG//-/_}"
@@ -94,6 +98,32 @@ cat > "$TAP_DIR/streams.py" << EOF
 """$NAME streams."""
 # TODO: Implement streams
 EOF
+cat > "$REPO/taps/tap-$SLUG/config.json.example" << EOF
+{
+  "api_key": "example-token",
+  "start_date": "2024-01-01T00:00:00Z"
+}
+EOF
+cat > "$REPO/taps/tap-$SLUG/README.md" << EOF
+# tap-$SLUG
+
+Singer tap for $NAME.
+
+## Streams
+
+- TODO
+
+## Config
+
+Copy \`config.json.example\` to \`config.json\` locally and fill credentials outside Git.
+
+## Smoke
+
+\`\`\`bash
+pip install -e .
+tap-$SLUG --config config.json --discover
+\`\`\`
+EOF
 
 # 3. Repo — Target scaffold
 TARGET_DIR="$REPO/targets/target-$SLUG/target_${SLUG//-/_}"
@@ -103,10 +133,30 @@ cat > "$TARGET_DIR/target.py" << EOF
 """$NAME target."""
 # TODO: Implement target
 EOF
+cat > "$REPO/targets/target-$SLUG/config.json.example" << EOF
+{
+  "api_key": "example-token"
+}
+EOF
+cat > "$REPO/targets/target-$SLUG/README.md" << EOF
+# target-$SLUG
+
+Singer target for $NAME.
+
+## Write semantics
+
+- TODO: create/update/upsert behavior
+- TODO: delete handling
+- TODO: retry/idempotency behavior
+
+## Config
+
+Copy \`config.json.example\` to \`config.json\` locally and fill credentials outside Git.
+EOF
 
 # 4. Repo — ETL scaffold
 mkdir -p "$REPO/etl/$SLUG"
-cat > "$REPO/etl/$SLUG/etl_$SLUG.py" << EOF
+cat > "$REPO/etl/$SLUG/etl_${SLUG//-/_}.py" << EOF
 """$NAME ETL notebook."""
 # TODO: Implement ETL transform
 EOF
@@ -135,9 +185,20 @@ cat > "$REPO/docs/$SLUG/troubleshooting.md" << EOF
 **Cause:**
 **Fix:**
 EOF
+cat > "$REPO/docs/$SLUG/data-mapping.md" << EOF
+# $NAME — Optiply Data Mapping
+
+| Source entity | Source field | Optiply entity | Optiply field | Notes |
+|---|---|---|---|---|
+| TODO | TODO | TODO | TODO | TODO |
+EOF
 
 echo "✅ Created:"
-echo "   Vault:  $VAULT/Projects/Integrations/$NAME.md"
+if [ -n "$VAULT" ]; then
+  echo "   Vault:  $VAULT/Projects/Integrations/$NAME.md"
+else
+  echo "   Vault:  skipped (set OP_INTEGRATIONS_VAULT to enable)"
+fi
 echo "   Tap:    $REPO/taps/tap-$SLUG/"
 echo "   Target: $REPO/targets/target-$SLUG/"
 echo "   ETL:    $REPO/etl/$SLUG/"
