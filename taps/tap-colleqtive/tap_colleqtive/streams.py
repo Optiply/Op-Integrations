@@ -174,6 +174,26 @@ STOCK_LOG_FIELDS = {
     "counting_lines_remaining_stockpool": th.StringType,
 }
 
+STOCK_FIELDS = {
+    "store_number": th.StringType,
+    "product_number": th.StringType,
+    "barcode": th.StringType,
+    "quantity": th.NumberType,
+    "stock": th.NumberType,
+    "location": th.IntegerType,
+    "last_stock_modified_datetime": th.DateTimeType,
+    "stock_pool_1": th.NumberType,
+    "stock_pool_2": th.NumberType,
+    "stock_pool_3": th.NumberType,
+    "stock_pool_4": th.NumberType,
+    "stock_pool_5": th.NumberType,
+    "stock_pool_6": th.NumberType,
+    "stock_pool_7": th.NumberType,
+    "stock_pool_8": th.NumberType,
+    "stock_pool_9": th.NumberType,
+    "stock_pool_10": th.NumberType,
+}
+
 BUY_ORDER_FIELDS = {
     "order_number": th.StringType,
     "store_number": th.StringType,
@@ -399,9 +419,9 @@ class ColleqtiveStream(Stream):
         params = self._page_params(page_start)
 
         if self.replication_key:
-            last_modified_date = self._incremental_filter(context)
-            if last_modified_date:
-                params["last_modified_date"] = last_modified_date
+            replication_value = self._incremental_filter(context)
+            if replication_value:
+                params[self.replication_key] = replication_value
 
         store_number = self.config.get("store_number")
         if store_number:
@@ -436,6 +456,7 @@ class ColleqtiveStream(Stream):
         if self.replication_key and not record.get(self.replication_key):
             record[self.replication_key] = (
                 row.get("last_modified_date")
+                or row.get("last_stock_modified_datetime")
                 or row.get("updated_on")
                 or row.get("datetime_created")
             )
@@ -500,9 +521,22 @@ class ProductsStream(ColleqtiveStream):
 
 
 class StocksStream(ColleqtiveStream):
-    """Colleqtive stock changes."""
+    """Colleqtive current stock."""
 
     name = "stocks"
+    path = "/api/v2/public/storeproducts/stock"
+    primary_keys = ["store_number", "product_number"]
+    replication_key = "last_stock_modified_datetime"
+    replication_method = "INCREMENTAL"
+    records_key = "list"
+    schema_fields = STOCK_FIELDS
+    schema = _field_schema(schema_fields)
+
+
+class OrdersStream(ColleqtiveStream):
+    """Colleqtive order changes."""
+
+    name = "orders"
     path = "/api/v2/public/products/stock/storeproductlogs"
     primary_keys = ["id"]
     replication_key = "last_modified_date"
@@ -516,17 +550,7 @@ class StocksStream(ColleqtiveStream):
         params = super()._request_params(context, page_start)
         if self.config.get("end_date"):
             params["to_modified_date"] = str(self.config["end_date"])
-        return params
-
-
-class OrdersStream(StocksStream):
-    """Colleqtive sell-order transactions from stock logs."""
-
-    name = "orders"
-
-    def _request_params(self, context: Optional[dict], page_start: int) -> dict[str, Any]:
-        params = super()._request_params(context, page_start)
-        params["reason_code"] = 100
+            params["reason_code"] = 100
         return params
 
 
