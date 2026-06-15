@@ -20,8 +20,8 @@ class TapColleqtive(Tap):
 
     Streams:
       - products    FULL_TABLE  GET /api/v2/public/products
-      - stocks      INCREMENTAL GET /api/v2/public/products/stock/storeproductlogs
-      - orders      INCREMENTAL GET /api/v2/public/products/stock/storeproductlogs?reason_code=100
+      - stocks      INCREMENTAL GET /api/v2/public/storeproducts/stock
+      - orders      INCREMENTAL GET /api/v2/public/products/stock/storeproductlogs
       - buy_orders  INCREMENTAL GET /api/v2/public/orders/deliveries
     """
 
@@ -67,7 +67,7 @@ class TapColleqtive(Tap):
             "start_date",
             th.DateTimeType,
             required=False,
-            description="Earliest last_modified_date to sync for incremental streams",
+            description="Earliest replication timestamp to sync for incremental streams",
         ),
         th.Property(
             "end_date",
