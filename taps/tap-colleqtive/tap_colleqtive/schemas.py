@@ -154,7 +154,6 @@ STOCK_FIELDS = {
     "product_description": th.StringType,
     "most_likely_quantity": th.NumberType,
     "most_likely_datetime": th.DateTimeType,
-    "last_stock_modified_datetime": th.DateTimeType,
     "last_counted_datetime": th.DateTimeType,
     "last_expiry_datetime": th.DateTimeType,
     "validate_expiry_datetime": th.DateTimeType,
